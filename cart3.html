@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Cart</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            padding: 20px;
+            padding-bottom: 80px;
+        }
+        h1 {
+            text-align: center;
+            color: #007bff;
+        }
+        .cartItem {
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            display: flex;
+            flex-direction: column;
+            transition: box-shadow 0.3s;
+        }
+        .cartItem:hover {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        img {
+            max-width: 80px;
+            margin-right: 15px;
+            border-radius: 4px;
+        }
+        .itemDetails {
+            flex: 1;
+        }
+        .totalPrice {
+            font-weight: bold;
+            font-size: 1.2em;
+            text-align: right;
+            margin-top: 20px;
+        }
+        .viewDesignButton {
+            background-color: #28a745;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            display: inline-block;
+            margin-top: 5px;
+        }
+        .viewDesignButton:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="cartContainer">
+        <h1>Your Cart</h1>
+        <div id="cartItems"></div>
+        <div class="totalPrice">
+            Total Price: <span class="price">ZAR 0</span>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+        import { getDatabase, ref as dbRef, get, child } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDrzrgLslaJvnXbo1e90irCEtdcm9ZsCU",
+            authDomain: "logins-13661.firebaseapp.com",
+            databaseURL: "https://logins-13661-default-rtdb.firebaseio.com",
+            projectId: "logins-13661",
+            storageBucket: "logins-13661.appspot.com",
+            messagingSenderId: "451535349483",
+            appId: "1:451535349483:web:d3c9867fd2bffbbdca40ae",
+            measurementId: "G-DWP16WX2H7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        function getCartIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id');
+        }
+
+        async function loadCart(cartId) {
+            try {
+                const snapshot = await get(child(dbRef(database), 'carts/' + cartId));
+                if (snapshot.exists()) {
+                    const cartData = snapshot.val().cart;
+                    displayCartItems(cartData);
+                } else {
+                    document.getElementById('cartItems').innerText = 'No cart found for this ID.';
+                }
+            } catch (error) {
+                console.error("Error loading cart:", error);
+            }
+        }
+
+        function displayCartItems(cartItems) {
+            const cartItemsContainer = document.getElementById('cartItems');
+            cartItemsContainer.innerHTML = '';
+
+            if (!cartItems || cartItems.length === 0) {
+                cartItemsContainer.innerHTML = '<p>Your cart is empty.</p>';
+                return;
+            }
+
+            let total = 0;
+            cartItems.forEach(item => {
+                const itemPrice = item.itemPrice || 0;
+                total += itemPrice;
+
+                const imagesHtml = Array.isArray(item.images) ? item.images.map((imageData, imgIndex) => 
+                    `<div>
+                        <a href="${imageData.file}" target="_blank">
+                            <img src="${imageData.file}" alt="Photo: none">
+                        </a>
+                        <div>${imgIndex + 1}. Custom: ${imageData.design}</div>
+                        <div>Text: ${imageData.text}</div>
+                        <div><a href="#" target="_blank" class="viewDesignButton">View Design</a></div>
+                    </div>`).join('') : '';
+
+                const cartItemDiv = document.createElement('div');
+                cartItemDiv.className = 'cartItem';
+                cartItemDiv.innerHTML = `
+                    <div class="itemDetails">
+                        <strong>${item.itemName}</strong><br>
+                        ${imagesHtml}
+                        <div>Price: ZAR ${itemPrice}</div>
+                        <div><a href="${item.catalogLink}" target="_blank">View Catalog</a></div>
+                    </div>
+                `;
+                cartItemsContainer.appendChild(cartItemDiv);
+            });
+
+            document.querySelector('.price').innerText = `ZAR ${total}`;
+        }
+
+        const cartId = getCartIdFromUrl();
+        if (cartId) {
+            loadCart(cartId);
+        } else {
+            document.getElementById('cartItems').innerText = 'No cart ID provided.';
+        }
+    </script>
+</body>
+</html>
