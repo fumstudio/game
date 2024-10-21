@@ -10,6 +10,7 @@
             background-color: #f8f9fa;
             color: #333;
             padding: 20px;
+            padding-bottom: 80px;
         }
         h1 {
             text-align: center;
@@ -22,41 +23,24 @@
             margin: 15px 0;
             display: flex;
             align-items: center;
+            transition: box-shadow 0.3s;
+        }
+        .cartItem:hover {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         img {
             max-width: 80px;
             margin-right: 15px;
             border-radius: 4px;
         }
-        .bottomNavbar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #ffffff;
-            border-top: 1px solid #dee2e6;
-            padding: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 1000;
+        .itemDetails {
+            flex: 1;
         }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 10px 15px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        .emptyMessage {
-            text-align: center;
+        .totalPrice {
+            font-weight: bold;
             font-size: 1.2em;
-            color: #777;
+            text-align: right;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -64,10 +48,9 @@
     <div class="cartContainer">
         <h1>Your Cart</h1>
         <div id="cartItems"></div>
-    </div>
-
-    <div class="bottomNavbar">
-        <button id="backButton">Back to Shopping</button>
+        <div class="totalPrice">
+            Total Price: <span class="price">ZAR 0</span>
+        </div>
     </div>
 
     <script type="module">
@@ -100,7 +83,7 @@
                     const cartData = snapshot.val().cart;
                     displayCartItems(cartData);
                 } else {
-                    document.getElementById('cartItems').innerHTML = '<p class="emptyMessage">No cart data found.</p>';
+                    document.getElementById('cartItems').innerText = 'No cart found for this ID.';
                 }
             } catch (error) {
                 console.error("Error loading cart:", error);
@@ -112,37 +95,36 @@
             cartItemsContainer.innerHTML = '';
 
             if (!cartItems || cartItems.length === 0) {
-                cartItemsContainer.innerHTML = '<p class="emptyMessage">Your cart is empty.</p>';
+                cartItemsContainer.innerHTML = '<p>Your cart is empty.</p>';
                 return;
             }
 
+            let total = 0;
             cartItems.forEach(item => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'cartItem';
-                itemDiv.innerHTML = 
-                    `<div>
+                const itemPrice = item.itemPrice || 0;
+                total += itemPrice;
+
+                const cartItemDiv = document.createElement('div');
+                cartItemDiv.className = 'cartItem';
+                cartItemDiv.innerHTML = `
+                    <div class="itemDetails">
                         <strong>${item.itemName}</strong><br>
-                        Price: ZAR ${item.itemPrice}<br>
-                        <a href="${item.catalogLink}" target="_blank">View Catalog</a>
+                        <div>Price: ZAR ${itemPrice}</div>
                     </div>
-                    <div>
-                        ${item.images.map(img => `
-                            <img src="${img.file}" alt="Image">
-                            <div>Design: ${img.design}</div>
-                        `).join('')}
-                    </div>`;
-                cartItemsContainer.appendChild(itemDiv);
+                `;
+                cartItemsContainer.appendChild(cartItemDiv);
             });
+
+            document.querySelector('.price').innerText = `ZAR ${total}`;
         }
 
         const cartId = getCartIdFromUrl();
         if (cartId) {
             loadCart(cartId);
+        } else {
+            document.getElementById('cartItems').innerText = 'No cart ID provided.';
         }
-
-        document.getElementById('backButton').addEventListener('click', () => {
-            window.history.back();
-        });
     </script>
 </body>
 </html>
+
