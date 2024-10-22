@@ -85,7 +85,18 @@
             align-items: center;
             z-index: 1000;
         }
-        
+     .itemDetails {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.priceContainer {
+    display: flex;
+    justify-content: flex-end; /* Aligns the price to the right */
+    margin-top: 10px; /* Optional: adds space above the price */
+}
+   
     </style>
 </head>
 <body>
@@ -166,7 +177,8 @@
                     <div class="itemDetails">
                         <strong>${item.itemName}</strong><br>
                         ${imagesHtml}
-                        <div>Price: ZAR ${itemPrice}</div><br>
+                         <div class="priceContainer">
+                        <div>Price: ZAR ${itemPrice}</div></div><br>
                         <div><a href="${item.catalogLink}" target="_blank" class="viewCatalogButton">View Catalog</a></div>
                     </div>
                 `;
