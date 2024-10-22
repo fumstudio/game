@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>View Cart</title>
+    <title>Cart Page</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -22,7 +22,7 @@
             padding: 15px;
             margin: 15px 0;
             display: flex;
-            flex-direction: column;
+            align-items: center;
             transition: box-shadow 0.3s;
         }
         .cartItem:hover {
@@ -35,40 +35,6 @@
         }
         .itemDetails {
             flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        .totalPrice {
-            font-weight: bold;
-            font-size: 1.2em;
-            text-align: right;
-            margin-top: 20px;
-        }
-        .viewDesignButton {
-            background-color: #28a745;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 5px;
-            text-decoration: none;
-            transition: background-color 0.3s;
-            display: inline-block;
-            margin: 20px 0;
-        }
-        .viewDesignButton:hover {
-            background-color: #218838;
-        }
-        .viewCatalogButton {
-            background-color: #007bff; /* Blue color */
-            color: white;
-            padding: 8px 12px;
-            border-radius: 5px;
-            text-decoration: none;
-            transition: background-color 0.3s;
-            margin: 20px 0; /* Adds space above and below */
-        }
-        .viewCatalogButton:hover {
-            background-color: #0056b3; /* Darker blue on hover */
         }
         .bottomNavbar {
             position: fixed;
@@ -84,10 +50,63 @@
             align-items: center;
             z-index: 1000;
         }
-        .priceContainer {
-            display: flex;
-            justify-content: flex-end; /* Aligns the price to the right */
-            margin-top: 10px; /* Adds space above the price */
+        .totalPrice {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .viewDesignButton {
+            background-color: #28a745;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            display: inline-block;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+        .viewDesignButton:hover {
+            background-color: #218838;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .alertBox {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .alertBox button {
+            background-color: white;
+            color: #007bff;
+            margin-top: 15px;
+        }
+        .alertBox button:hover {
+            background-color: #e0e0e0;
         }
     </style>
 </head>
@@ -95,16 +114,26 @@
     <div class="cartContainer">
         <h1>Your Cart</h1>
         <div id="cartItems"></div>
+    </div>
+
+    <div class="bottomNavbar">
         <div class="totalPrice">
-            <div class="bottomNavbar">
-                Total Price: <span class="price">ZAR 0</span>
-            </div>  
+            Total Price: <span class="price" data-price="0">ZAR 0</span>
+        </div>
+        <button id="shareButton">Share Cart</button>
+    </div>
+
+    <div class="overlay" id="alertOverlay" style="display:none;">
+        <div class="alertBox" id="alertBox">
+            <p id="alertMessage">Your message here.</p>
+            <button id="alertOkButton">OK</button>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
-        import { getDatabase, ref as dbRef, get, child } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+        import { getDatabase, ref as dbRef, set, get, child } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-database.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBDrzrgLslaJvnXbo1e90irCEtdcm9ZsCU",
@@ -118,86 +147,173 @@
         };
 
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth();
         const database = getDatabase(app);
 
-        function getCartIdFromUrl() {
+        function getUserIdFromUrl() {
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('id');
         }
 
-        async function loadCart(cartId) {
+        onAuthStateChanged(auth, (user) => {
+            const userId = getUserIdFromUrl();
+            if (userId) {
+                loadCartFromFirebase(userId);
+            } else if (user) {
+                loadCartFromFirebase(user.uid);
+            } else {
+                console.log("User is signed out.");
+                initializeDefaultCart();
+            }
+        });
+
+        async function saveCartToFirebase(userId) {
             try {
-                const snapshot = await get(child(dbRef(database), 'carts/' + cartId));
+                const cartItems = JSON.parse(localStorage.getItem('cart')) || [];
+                const cartId = generateUniqueId();
+                await set(dbRef(database, 'carts/' + cartId), {
+                    cart: cartItems,
+                    ownerId: userId
+                });
+                console.log("Cart saved successfully!");
+                return cartId;
+            } catch (error) {
+                console.error("Error saving cart:", error);
+            }
+        }
+
+        function loadCartFromFirebase(userId) {
+            get(child(dbRef(database), 'carts/' + userId)).then((snapshot) => {
                 if (snapshot.exists()) {
                     const cartData = snapshot.val().cart;
-                    displayCartItems(cartData);
+                    console.log("Retrieved cart data:", cartData);
+                    if (Array.isArray(cartData)) {
+                        const validCartData = cartData.filter(item => item && item.itemPrice != null);
+                        localStorage.setItem('cart', JSON.stringify(validCartData));
+                        displayCartItems();
+                    } else {
+                        console.warn("Cart data is not an array. Initializing with a default item.");
+                        initializeDefaultCart();
+                    }
                 } else {
-                    document.getElementById('cartItems').innerText = 'No cart found for this ID.';
+                    console.log("No cart data found.");
+                    initializeDefaultCart();
                 }
-            } catch (error) {
+            }).catch((error) => {
                 console.error("Error loading cart:", error);
-            }
+            });
         }
+
+        function initializeDefaultCart() {
+            const defaultItem = {
+                itemName: "Sample Item",
+                itemPrice: 0,
+                catalogLink: "#",
+                images: [
+                    {
+                        file: "https://via.placeholder.com/80",
+                        design: "Default Design",
+                        text: "Sample Text"
+                    }
+                ]
+            };
+            localStorage.setItem('cart', JSON.stringify([defaultItem]));
+            displayCartItems();
+        }
+
+        function generateUniqueId() {
+            return 'xxxx-xxxx-xxxx-xxxx'.replace(/[x]/g, () => {
+                const random = Math.floor(Math.random() * 16);
+                return random.toString(16);
+            });
+        }
+
+        function showAlert(message) {
+            document.getElementById('alertMessage').innerText = message;
+            document.getElementById('alertOverlay').style.display = 'flex';
+            document.getElementById('alertOkButton').onclick = hideAlert;
+        }
+
+        function hideAlert() {
+            document.getElementById('alertOverlay').style.display = 'none';
+        }
+
+        let storedCurrency = localStorage.getItem('selectedCurrency') || 'ZAR';
+        const designLinks = {
+            "Default Design": "https://example.com/design1"
+        };
+
+        const conversionRates = {
+            "ZAR": 1,
+            "USD": 0.065, // Example conversion rate
+            "EUR": 0.059, // Example conversion rate
+        };
 
         function convertPrice(price, currency) {
-            if (currency === 'ZAR') {
-                return price; // No conversion
-            } else if (currency === 'USD') {
-                return (price * 0.067).toFixed(2); // Example conversion rate
-            }
-            return price; // Fallback
+            return (price * conversionRates[currency]).toFixed(2);
         }
 
-        function displayCartItems(cartItems) {
+        function displayCartItems() {
             const cartItemsContainer = document.getElementById('cartItems');
+            const cartItems = JSON.parse(localStorage.getItem('cart')) || [];
             cartItemsContainer.innerHTML = '';
 
-            if (!cartItems || cartItems.length === 0) {
+            if (cartItems.length === 0) {
                 cartItemsContainer.innerHTML = '<p>Your cart is empty.</p>';
+                document.querySelector('.price').innerText = 'ZAR 0';
+                document.querySelector('.price').setAttribute('data-price', '0');
                 return;
             }
 
             let total = 0;
-            cartItems.forEach(item => {
-                const itemPrice = item.itemPrice || 0;
-                const storedCurrency = 'ZAR'; // Replace this with your logic to get the current currency
-                const convertedPrice = convertPrice(itemPrice, storedCurrency);
-                total += itemPrice;
+            cartItems.forEach((item) => {
+                if (item && item.itemPrice != null) {
+                    const itemPriceInSelectedCurrency = convertPrice(item.itemPrice, storedCurrency);
+                    const imagesHtml = Array.isArray(item.images) ? item.images.map((imageData, imgIndex) => 
+                        `<div>
+                            <a href="${imageData.file}" target="_blank">
+                                <img src="${imageData.file}" alt="Photo: none">
+                            </a>
+                            <div>${imgIndex + 1}. Custom: ${imageData.design}</div>
+                            <div>Text: ${imageData.text}</div>
+                            <div><a href="${designLinks[imageData.design] || '#'}" target="_blank" class="viewDesignButton">View Design</a></div>
+                        </div>`).join('') : '';
 
-                const imagesHtml = Array.isArray(item.images) ? item.images.map((imageData, imgIndex) => 
-                    `<div>
-                        <a href="${imageData.file}" target="_blank">
-                            <img src="${imageData.file}" alt="Photo: none">
-                        </a>
-                        <div>${imgIndex + 1}. Custom: ${imageData.design}</div>
-                        <div>Text: ${imageData.text}</div>
-                        <div><a href="#" target="_blank" class="viewDesignButton">View Design</a></div>
-                    </div>`).join('') : '';
-
-                const cartItemDiv = document.createElement('div');
-                cartItemDiv.className = 'cartItem';
-                cartItemDiv.innerHTML = `
-                    <div class="itemDetails">
-                        <strong>${item.itemName}</strong><br>
-                        ${imagesHtml}
-                        <div class="priceContainer">
-                            <div>Price: ${storedCurrency} ${convertedPrice}</div>
+                    const cartItemDiv = document.createElement('div');
+                    cartItemDiv.className = 'cartItem';
+                    cartItemDiv.innerHTML = 
+                        `<div class="itemDetails">
+                            <strong>${item.itemName}</strong><br>
+                            ${imagesHtml}
+                            
+                            <div>Price: ${storedCurrency} ${itemPriceInSelectedCurrency}</div>
                         </div>
-                        <div><a href="${item.catalogLink}" target="_blank" class="viewCatalogButton">View Catalog</a></div>
-                    </div>
-                `;
-                cartItemsContainer.appendChild(cartItemDiv);
+                        <div>
+                            <button onclick="window.open('${item.catalogLink}', '_blank')">View Catalog</button>
+                        </div>`;
+                    cartItemsContainer.appendChild(cartItemDiv);
+                    total += item.itemPrice;
+                } else {
+                    console.warn(`Item is invalid:`, item);
+                }
             });
 
-            document.querySelector('.price').innerText = `${storedCurrency} ${convertPrice(total, storedCurrency)}`;
+            const totalInSelectedCurrency = convertPrice(total, storedCurrency);
+            document.querySelector('.price').innerText = `${storedCurrency} ${totalInSelectedCurrency}`;
+            document.querySelector('.price').setAttribute('data-price', totalInSelectedCurrency);
         }
 
-        const cartId = getCartIdFromUrl();
-        if (cartId) {
-            loadCart(cartId);
-        } else {
-            document.getElementById('cartItems').innerText = 'No cart ID provided.';
-        }
+        document.getElementById('shareButton').addEventListener('click', async () => {
+            const cartId = await saveCartToFirebase(auth.currentUser.uid);
+            const publicCartUrl = `https://yourwebsite.com/publicCart.html?id=${cartId}`;
+            const phoneNumber = '0659860276';
+            const whatsappShareUrl = `https://api.whatsapp.com/send?phone=${phoneNumber}&text=Check out my cart: ${encodeURIComponent(publicCartUrl)}`;
+            window.open(whatsappShareUrl, '_blank');
+        });
+
+        // Initial display of cart items
+        displayCartItems();
     </script>
 </body>
 </html>
+
