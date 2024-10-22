@@ -120,6 +120,18 @@
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
 
+        const storedCurrency = localStorage.getItem('selectedCurrency') || 'ZAR';
+
+        const conversionRates = {
+            "ZAR": 1,
+            "USD": 0.065, // Example conversion rate
+            "EUR": 0.059, // Example conversion rate
+        };
+
+        function convertPrice(price, currency) {
+            return (price * conversionRates[currency]).toFixed(2);
+        }
+
         function getCartIdFromUrl() {
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('id');
@@ -139,28 +151,19 @@
             }
         }
 
-        function convertPrice(price, currency) {
-            if (currency === 'ZAR') {
-                return price; // No conversion
-            } else if (currency === 'USD') {
-                return (price * 0.067).toFixed(2); // Example conversion rate
-            }
-            return price; // Fallback
-        }
-
         function displayCartItems(cartItems) {
             const cartItemsContainer = document.getElementById('cartItems');
             cartItemsContainer.innerHTML = '';
 
             if (!cartItems || cartItems.length === 0) {
                 cartItemsContainer.innerHTML = '<p>Your cart is empty.</p>';
+                document.querySelector('.price').innerText = 'ZAR 0';
                 return;
             }
 
             let total = 0;
             cartItems.forEach(item => {
                 const itemPrice = item.itemPrice || 0;
-                const storedCurrency = 'ZAR'; // Replace this with your logic to get the current currency
                 const convertedPrice = convertPrice(itemPrice, storedCurrency);
                 total += itemPrice;
 
