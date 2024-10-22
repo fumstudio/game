@@ -70,6 +70,33 @@
         .viewCatalogButton:hover {
             background-color: #0056b3; /* Darker blue on hover */
         }
+       .bottomNavbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border-top: 1px solid #dee2e6;
+            padding: 10px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+        }
+         button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -77,7 +104,9 @@
         <h1>Your Cart</h1>
         <div id="cartItems"></div>
         <div class="totalPrice">
+                <div class="bottomNavbar">
             Total Price: <span class="price">ZAR 0</span>
+                  </div>  
         </div>
     </div>
 
